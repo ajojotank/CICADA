@@ -68,7 +68,7 @@ This project is licensed for academic use as part of the Wits University Softwar
 ## 🤝 Contributors
 
 - **Joash Paul**
-- **Emmanuel Azu**
+- **Emmanuel Azubuike**
 - **Calvin Rea**
 - **Kamogelo Khumalo**
 
