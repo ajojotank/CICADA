@@ -4,9 +4,9 @@ CICADA is a full-stack web application designed to manage and query historical c
 
 > **Developed for:** Software Design Course (COMS3009A)  
 > **Language:** JavaScript (React.js + Node.js)  
-> **Deployment:** AWS  
+> **Deployment:** Azure
 > **Search Engine:** MeiliSearch  
-> **Auth:** Firebase/Auth0  
+> **Auth:** Supabase 
 
 ---
 
@@ -26,12 +26,13 @@ CICADA is a full-stack web application designed to manage and query historical c
 |------------------|----------------------------------|
 | Frontend         | React.js + Vite, Tailwind CSS    |
 | Backend          | Node.js + Express.js             |
-| Database         | PostgreSQL                       |
+| Database         | Supabase(PostgreSQL)             |
 | Search Engine    | MeiliSearch                      |
-| Authentication   | Firebase Auth / Auth0            |
-| Storage          | AWS S3                           |
-| CI/CD            | GitHub Actions or AWS CodePipeline |
-| Deployment       | AWS Amplify / AWS ECS / EC2      |
+| Authentication   | Supabase                         |
+| Storage          | Supabase                         |
+| CI/CD            | GitHub Actions                   |
+| Deployment       | Azure                            |
+| Testing          | Supertest
 
 ---
 
@@ -42,7 +43,7 @@ CICADA is a full-stack web application designed to manage and query historical c
 - 🏷️ Metadata Editing & Tagging
 - 🔍 Public Natural Language Search Interface
 - 🔌 REST API (Extensible to WhatsApp bots)
-- 🚀 Full AWS Deployment with CI/CD
+- 🚀 Full Azure Deployment with CI/CD
 
 ---
 
