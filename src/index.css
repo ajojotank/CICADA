@@ -1,0 +1,193 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 260 40% 98%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 262 80% 74%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5.9% 10%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 262 80% 74%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 262 80% 74%;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 262 80% 74%;
+    --primary-foreground: 240 5.9% 10%;
+
+    --secondary: 0 0% 98%;
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 262 83% 58%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 262 83% 58%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  .search-input:focus {
+    @apply shadow-glow dark:shadow-glow-dark;
+  }
+  
+  .typing-effect {
+    overflow: hidden;
+    white-space: nowrap;
+    animation: typing 3s steps(40, end);
+    animation-fill-mode: forwards;
+  }
+  
+  .pdf-viewer {
+    @apply bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden;
+    height: 70vh;
+  }
+  
+  .source-card {
+    @apply bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md hover:shadow-lg transition-all;
+    min-width: 250px;
+  }
+  
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 4px; /* Thinner scrollbar */
+    padding-right: 5px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary/70 dark:bg-primary/80 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary dark:bg-primary;
+  }
+  
+  /* Custom scrollbar for textarea */
+  textarea::-webkit-scrollbar {
+    width: 1px;
+    margin-right: 3px; /* Add margin to move it left */
+  }
+  
+  textarea::-webkit-scrollbar-track {
+    @apply bg-transparent;
+    margin-right: 3px; /* Move track to the left */
+  }
+  
+  textarea::-webkit-scrollbar-thumb {
+    @apply bg-primary/70 dark:bg-primary/80 rounded-full;
+    margin-right: 3px; /* Move thumb to the left */
+  }
+  
+  /* For Firefox */
+  textarea {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.primary.DEFAULT / 0.7') transparent;
+    padding-right: 6px; /* Add padding to keep text away from scrollbar */
+  }
+  
+  /* Chat message animations */
+  .message-user {
+    @apply animate-fade-in;
+  }
+  
+  .message-ai {
+    @apply animate-fade-in;
+  }
+  
+  .citation {
+    @apply text-cicada-secondary dark:text-cicada-primary font-medium cursor-pointer;
+  }
+
+  /* Loading dots animation */
+  @keyframes bounce {
+    0%, 80%, 100% {
+      transform: translateY(0);
+    }
+    40% {
+      transform: translateY(-4px);
+    }
+  }
+
+  .loading-dot:nth-child(1) {
+    animation-delay: -0.32s;
+  }
+  
+  .loading-dot:nth-child(2) {
+    animation-delay: -0.16s;
+  }
+  
+  .loading-dot:nth-child(3) {
+    animation-delay: 0s;
+  }
+}
