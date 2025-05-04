@@ -49,19 +49,24 @@ export const fetchDocuments = async (fileSystemType: FileSystemType = 'private')
  */
 export const fetchDocumentById = async (id: string, fileSystemType?: FileSystemType): Promise<Document | null> => {
   try {
-    // Get current user
+    // Get current user (but don't require it)
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) {
-      throw new Error("You must be logged in to fetch documents");
-    }
-    console.log('Current user:', userData.user.id);
+    const userId = userData?.user?.id;
+    console.log('Current user:', userId || 'unauthenticated');
     console.log('Fetching document with ID:', id);
+
+    // If fileSystemType is specified and it's private, require authentication
+    if (fileSystemType === 'private') {
+      if (!userId) {
+        throw new Error("You must be logged in to access private documents");
+      }
+    }
 
     // Try public first if fileSystemType is not specified
     if (!fileSystemType) {
       console.log('Trying public table first...');
       
-      const { data: publicData, error: publicError } = await supabase
+      const query = supabase
         .from('documents_public')
         .select(`
           *,
@@ -69,32 +74,40 @@ export const fetchDocumentById = async (id: string, fileSystemType?: FileSystemT
           ai_key_sections,
           ai_citations
         `)
-        .eq('id', id)
-        .eq('uploader_user_id', userData.user.id)
-        .single();
+        .eq('id', id);
+
+      // Only filter by uploader if authenticated
+      if (userId) {
+        query.eq('uploader_user_id', userId);
+      }
+
+      const { data: publicData, error: publicError } = await query.single();
 
       if (!publicError && publicData) {
         console.log('Found in public table:', publicData);
         return formatDocument(publicData, true);
       }
 
-      console.log('Not found in public table, trying private...');
-      
-      const { data: privateData, error: privateError } = await supabase
-        .from('documents_private')
-        .select(`
-          *,
-          ai_summary,
-          ai_key_sections,
-          ai_citations
-        `)
-        .eq('id', id)
-        .eq('user_id', userData.user.id)
-        .single();
+      // Only try private table if user is authenticated
+      if (userId) {
+        console.log('Not found in public table, trying private...');
+        
+        const { data: privateData, error: privateError } = await supabase
+          .from('documents_private')
+          .select(`
+            *,
+            ai_summary,
+            ai_key_sections,
+            ai_citations
+          `)
+          .eq('id', id)
+          .eq('user_id', userId)
+          .single();
 
-      if (!privateError && privateData) {
-        console.log('Found in private table:', privateData);
-        return formatDocument(privateData, false);
+        if (!privateError && privateData) {
+          console.log('Found in private table:', privateData);
+          return formatDocument(privateData, false);
+        }
       }
 
       console.log('Document not found in either table');
@@ -109,7 +122,7 @@ export const fetchDocumentById = async (id: string, fileSystemType?: FileSystemT
     console.log('Using table:', tableName);
     console.log('Using user ID field:', userIdField);
 
-    const { data, error } = await supabase
+    const query = supabase
       .from(tableName)
       .select(`
         *,
@@ -117,9 +130,14 @@ export const fetchDocumentById = async (id: string, fileSystemType?: FileSystemT
         ai_key_sections,
         ai_citations
       `)
-      .eq('id', id)
-      .eq(userIdField, userData.user.id)
-      .single();
+      .eq('id', id);
+
+    // Only filter by user ID if authenticated and table is private, or if explicitly requested
+    if (userId && !isPublic) {
+      query.eq(userIdField, userId);
+    }
+
+    const { data, error } = await query.single();
     
     if (error) {
       console.error('Database query error:', error);

@@ -1,5 +1,5 @@
-// /supabase/functions/cleoChat.ts       (v3.3)
-// Cleo – multi-turn chat + RAG (Gemini-2.0-Flash) – UUID source IDs
+// /supabase/functions/cleoChat.ts       (v3.4)
+// Cleo – multi-turn chat + RAG  (Gemini-2.0-Flash)  — robust UUID handling
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // ──────────────────── Supabase & Gemini keys ────────────────────
@@ -9,10 +9,31 @@ const GEMINI_STREAM_URL = `https://generativelanguage.googleapis.com/v1beta/mode
 const GEMINI_EMBED_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-exp-03-07:embedContent?key=${GEMINI_KEY}`;
 // ──────────────────── Prompt / tools / CORS ─────────────────────
 const SYSTEM_PROMPT = `
-You are **Cleo**, CICADA's friendly constitutional research assistant.
-- ALWAYS use the "get_relevant_documents" function for substantive constitutional questions.
-- Cite retrieved docs inline as [1], [2], [3] in order.
-- Be concise, quote directly when helpful, and never guess beyond sources.
+You are **Cleo** – CICADA's constitutional research assistant with two modes:  
+🔹 **Default**: Friendly and engaging (emojis, light humor)  
+🔹 **Serious Mode**: No-nonsense tone for grave topics  
+
+### 🚀 Core Rules:  
+1. **Function Triggers** 🤖  
+   - *Always* use \`get_relevant_documents\` for:  
+     • Constitutional/legal queries  
+     • Historical cases  
+   - *Never* for off-topic/personal advice.  
+
+2. **Serious Mode Activation** ⚠️  
+   Switch to **formal, zero-emoji** responses when users mention: violent crimes,  
+   human-rights violations, or active emergencies.  
+
+3. **Citation Protocol** 📜  
+   Inline numbered refs [1][2][3] – quote key phrases when helpful.  
+
+4. **Tone Guidelines**  
+   Default: light & helpful – Serious Mode: flat & factual.  
+
+### 🚫 Absolute Limits  
+- No emergency advice: “Contact authorities immediately.”  
+- No hypotheticals about violence/abuse.  
+- No editorialising beyond sources.  
 `.trim();
 const tools = [
   {
@@ -36,15 +57,14 @@ const tools = [
     ]
   }
 ];
-const CORS = {
+const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS"
 };
 // ──────────────────── Helper utilities ──────────────────────────
-function looksLikeUUID(str = "") {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-}
+const uuidRE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUUID = (s)=>!!s && uuidRE.test(s);
 async function fetchJsonOrThrow(url, init, label) {
   const res = await fetch(url, init);
   const ctype = res.headers.get("content-type") || "";
@@ -72,15 +92,16 @@ function mapRow(row) {
 }
 // ──────────────────── Edge entry point ───────────────────────────
 serve(async (req)=>{
-  if (req.method === "OPTIONS") return new Response("OK", {
-    headers: CORS
-  });
+  if (req.method === "OPTIONS") {
+    return new Response("OK", {
+      headers: CORS_HEADERS
+    });
+  }
   try {
     const body = await req.json();
-    const query = body.query;
-    const user_id = body.user_id ?? "anonymous";
-    const history = body.history ?? [];
-    if (!query) throw new Error("Body requires 'query' field");
+    if (!body?.query) throw new Error("Body requires ‘query’ field");
+    // ── user_id logic ──
+    const user_id = isUUID(body.user_id) ? body.user_id : null;
     const contents = [
       {
         role: "user",
@@ -90,7 +111,7 @@ serve(async (req)=>{
           }
         ]
       },
-      ...history.map((m)=>({
+      ...(body.history ?? []).map((m)=>({
           role: m.role,
           parts: [
             {
@@ -102,12 +123,12 @@ serve(async (req)=>{
         role: "user",
         parts: [
           {
-            text: query
+            text: body.query
           }
         ]
       }
     ];
-    // 1️⃣ first Gemini streaming call
+    // 1️⃣ initial Gemini call
     const firstResp = await fetchJsonOrThrow(GEMINI_STREAM_URL, {
       method: "POST",
       headers: {
@@ -121,78 +142,81 @@ serve(async (req)=>{
     if (!firstResp.body) throw new Error("Gemini SSE missing body");
     // 2️⃣ stream to browser
     const stream = new ReadableStream({
-      async start (ctrl) {
+      async start (controller) {
         const reader = firstResp.body.getReader();
         const decoder = new TextDecoder();
-        let buf = "", collected = "", toolDone = false, sources = [];
-        let last = Date.now();
-        const timeoutMs = 60_000;
+        let buf = "";
+        let collected = "";
+        let toolDone = false;
+        let sources = [];
+        const watchdogMs = 60_000;
+        let lastTick = Date.now();
         const watchdog = setInterval(()=>{
-          if (Date.now() - last > timeoutMs) {
+          if (Date.now() - lastTick > watchdogMs) {
             console.error("⏱️ upstream timeout");
-            sse(ctrl, "error", {
+            sse(controller, "error", {
               error: "Upstream timeout"
             });
-            ctrl.close();
+            controller.close();
           }
         }, 10_000);
         try {
           while(true){
             const { value, done } = await reader.read();
             if (done) break;
-            last = Date.now();
+            lastTick = Date.now();
             buf += decoder.decode(value, {
               stream: true
             });
             const lines = buf.split("\n");
             buf = lines.pop() ?? "";
-            for (const l of lines){
-              if (!l.startsWith("data:")) continue;
-              const payload = l.slice(5).trim();
+            for (const line of lines){
+              if (!line.startsWith("data:")) continue;
+              const payload = line.slice(5).trim();
               if (!payload || payload === "[DONE]") continue;
               const j = JSON.parse(payload);
-              const pr = j?.candidates?.[0]?.content?.parts ?? [];
-              const fc = pr[0]?.functionCall;
-              // — tool branch
-              if (fc && fc.name === "get_relevant_documents" && !toolDone) {
+              const parts = j?.candidates?.[0]?.content?.parts ?? [];
+              const fc = parts[0]?.functionCall;
+              // ── tool branch ──
+              if (fc?.name === "get_relevant_documents" && !toolDone) {
                 toolDone = true;
                 try {
                   const rag = await performRag(fc.args.query, user_id);
                   sources = rag.rows.map(mapRow);
-                  sse(ctrl, "sources", sources);
-                  const cont = await continueGemini(contents, fc, rag);
-                  await pipeContinuation(cont, ctrl, (txt)=>collected += txt);
+                  sse(controller, "sources", sources);
+                  const contReader = await continueGemini(contents, fc, rag);
+                  await pipeContinuation(contReader, controller, (txt)=>collected += txt);
                 } catch (e) {
                   console.error("🔴 RAG error", e);
-                  sse(ctrl, "error", {
+                  sse(controller, "error", {
                     error: e.message
                   });
                 }
-                break; // exit reading loop
+                break; // stop processing initial stream
               }
-              // — normal token
-              pr.forEach((p)=>{
+              // ── normal token ──
+              parts.forEach((p)=>{
                 if (p.text) {
                   collected += p.text;
-                  sse(ctrl, "data", p.text);
+                  sse(controller, "data", p.text);
                 }
               });
             }
           }
-          sse(ctrl, "result", {
+          sse(controller, "result", {
             text: collected.trim(),
             sources
           });
-          sse(ctrl, "end", "[DONE]");
+          sse(controller, "end", "[DONE]");
         } finally{
           clearInterval(watchdog);
-          ctrl.close();
+          controller.close();
         }
       }
     });
     return new Response(stream, {
       headers: {
-        ...CORS,
+        ...CORS_HEADERS,
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache"
       }
@@ -204,7 +228,7 @@ serve(async (req)=>{
     })}\n\n`, {
       status: 500,
       headers: {
-        ...CORS,
+        ...CORS_HEADERS,
         "Content-Type": "text/event-stream"
       }
     });
@@ -212,6 +236,7 @@ serve(async (req)=>{
 });
 // ──────────────────── RAG helpers ────────────────────────────────
 async function performRag(question, user_id) {
+  // 1. embed question
   const embJson = await fetchJsonOrThrow(GEMINI_EMBED_URL, {
     method: "POST",
     headers: {
@@ -236,25 +261,23 @@ async function performRag(question, user_id) {
     match_count: 3,
     similarity_threshold: 0.75
   };
-  // public vectors (always)
+  // 2. public vectors (always)
   const pub = await supabase.rpc("match_documents", {
     ...base,
     table_name: "public_vectors"
   });
   if (pub.error) throw new Error(`RPC public: ${pub.error.message}`);
-  // private vectors (only if user_id is UUID)
-  let privRows = [];
-  if (looksLikeUUID(user_id)) {
-    const priv = await supabase.rpc("match_documents", {
-      ...base,
-      table_name: "private_vectors",
-      current_user_id: user_id
-    });
-    if (priv.error) throw new Error(`RPC private: ${priv.error.message}`);
-    privRows = priv.data;
-  }
+  // 3. private vectors (call either with or without user id)
+  const privParams = {
+    ...base,
+    table_name: "private_vectors"
+  };
+  if (user_id) privParams.current_user_id = user_id;
+  const priv = await supabase.rpc("match_documents", privParams);
+  if (priv.error) throw new Error(`RPC private: ${priv.error.message}`);
+  // 4. merge & rank
   const rows = [
-    ...privRows,
+    ...priv.data,
     ...pub.data
   ].sort((a, b)=>b.similarity - a.similarity).slice(0, 3);
   return {
@@ -309,9 +332,9 @@ async function pipeContinuation(reader, ctrl, collect) {
     });
     const lines = buf.split("\n");
     buf = lines.pop() ?? "";
-    for (const l of lines){
-      if (!l.startsWith("data:")) continue;
-      const p = l.slice(5).trim();
+    for (const line of lines){
+      if (!line.startsWith("data:")) continue;
+      const p = line.slice(5).trim();
       if (!p || p === "[DONE]") continue;
       JSON.parse(p)?.candidates?.[0]?.content?.parts?.forEach((part)=>{
         if (part.text) {
