@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/tests/api/publicDocumentService.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as publicService from "@/services/api/publicDocumentService";
 import { supabase } from "@/lib/supabase";
+import { Readable } from "stream";
 
 vi.mock("@/lib/supabase", () => {
   return {
@@ -72,9 +74,16 @@ describe("publicDocumentService", () => {
       }),
     });
 
-    const fakeFile = new File(["test"], "test.pdf", {
+    const fakeFile = {
+      name: "test.pdf",
       type: "application/pdf",
-    });
+      size: 1024,
+      arrayBuffer: async () => new TextEncoder().encode("test content").buffer,
+      stream: () => Readable.from(["test content"]), // optional if used
+      slice: () => fakeFile,
+      lastModified: Date.now(),
+    } as unknown as File;
+    
     const result = await publicService.uploadPublicDocument(fakeFile, {
       folder: "Legislation",
     });

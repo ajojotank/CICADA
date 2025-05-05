@@ -1,6 +1,7 @@
 // tests/publicDocumentService.test.ts
 
 import * as publicService from "@/services/api/publicDocumentService";
+import { Readable } from "stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", () => {
@@ -57,9 +58,16 @@ describe("uploadPublicDocument", () => {
   });
 
   it("uploads a public document and returns metadata", async () => {
-    const fakeFile = new File(["test content"], "test.pdf", {
+    const fakeFile = {
+      name: "test.pdf",
       type: "application/pdf",
-    });
+      size: 1024,
+      arrayBuffer: async () => new TextEncoder().encode("test content").buffer,
+      stream: () => Readable.from(["test content"]), // optional if used
+      slice: () => fakeFile,
+      lastModified: Date.now(),
+    } as unknown as File;
+    
 
     const metadata = {
       folder: "Legislation",
@@ -78,9 +86,16 @@ describe("uploadPublicDocument", () => {
   });
 
   it("throws an error for invalid category", async () => {
-    const fakeFile = new File(["test content"], "test.pdf", {
+    const fakeFile = {
+      name: "test.pdf",
       type: "application/pdf",
-    });
+      size: 1024,
+      arrayBuffer: async () => new TextEncoder().encode("test content").buffer,
+      stream: () => Readable.from(["test content"]), // optional if used
+      slice: () => fakeFile,
+      lastModified: Date.now(),
+    } as unknown as File;
+    
 
     const metadata = {
       folder: "Invalid Category",
