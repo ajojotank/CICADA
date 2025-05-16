@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as folderService from "@/services/api/folderService";
 import { supabase } from "@/lib/supabase";

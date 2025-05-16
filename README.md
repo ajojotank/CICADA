@@ -1,6 +1,7 @@
 # 🦋 CICADA
 
-> A modern constitutional archive search and management system
+> A modern constitutional archive search and management system  
+> **Full documentation:** <https://cicada.mintlify.app/introduction/overview>
 
 CICADA is a full-stack web application that makes exploring historical constitutional archives a breeze. Built with React, Supabase, and modern web technologies, it combines powerful AI-driven search capabilities with an intuitive user interface.
 

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "coverage": "vitest run --coverage",
+    "coverage": "vitest run --coverage.enabled=true",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest"
