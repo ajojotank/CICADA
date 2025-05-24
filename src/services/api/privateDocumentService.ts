@@ -178,8 +178,7 @@ export const deletePrivateDocument = async (id: string): Promise<boolean> => {
     const { error } = await supabase
       .from('documents_private')
       .delete()
-      .eq('id', id)
-      .eq('user_id', userData.user.id);
+      .match({ id, user_id: userData.user.id });
 
     if (error) throw error;
 
@@ -215,9 +214,11 @@ export const uploadPrivateDocument = async (
     const { data: existingFiles, error: checkError } = await supabase
       .from('documents_private')
       .select('file_name')
-      .eq('folder', folder)
-      .eq('user_id', userData.user.id)
-      .eq('file_name', file.name);
+      .match({ 
+        folder, 
+        user_id: userData.user.id,
+        file_name: file.name 
+      });
       
     if (checkError) throw checkError;
     
